@@ -10,8 +10,8 @@ class OCRProcessor:
         # Initialize PaddleOCR
         # use_angle_cls=True helps with rotated images
         # lang='en' for standard alphanumeric cards
-        # We set it here so it's globally active for this instance
-        self.ocr = PaddleOCR(use_angle_cls=True, lang='en', show_log=False)
+        # We removed show_log=False as it causes errors in newer PaddleOCR versions
+        self.ocr = PaddleOCR(use_angle_cls=True, lang='en')
         print("--- PaddleOCR Engine Initialized (CPU Mode) ---")
 
     def preprocess_image(self, img_path):
@@ -36,8 +36,7 @@ class OCRProcessor:
             raise FileNotFoundError(f"Image not found at {img_path}")
 
         # Run OCR
-        # We remove 'cls=True' here because 'use_angle_cls=True' was already set in __init__
-        # This avoids the "unexpected keyword argument 'cls'" error in certain PaddleOCR versions.
+        # Note: 'cls=True' is handled by 'use_angle_cls=True' in __init__
         result = self.ocr.ocr(img_path)
         
         # Raw lines extraction
