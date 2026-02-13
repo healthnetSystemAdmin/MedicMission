@@ -21,13 +21,13 @@ An offline-first patient registration system optimized for Raspberry Pi 5.
 ```bash
 # Install system dependencies
 sudo apt-get update
-sudo apt-get install -y libgl1-mesa-glx libglib2.0-0 libsm6 libxrender1 libxext6
+sudo apt-get install -y libgl1 libglib2.0-0 libsm6 libxrender1 libxext6
 
 # Setup environment
 cd backend
 python -m venv venv
 source venv/bin/activate
-pip install fastapi uvicorn paddleocr paddlepaddle opencv-python sqlalchemy pydantic pillow
+pip install fastapi uvicorn paddleocr paddlepaddle opencv-python sqlalchemy pydantic pillow python-multipart
 ```
 
 ### Frontend Setup
