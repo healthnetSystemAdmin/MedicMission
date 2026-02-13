@@ -8,10 +8,11 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 import shutil
 
-# Local imports
-from .database import engine, get_db, Base
-from . import models, schemas
-from .ocr.engine import OCRProcessor
+# Local imports - Fixed to absolute for direct script execution
+from database import engine, get_db, Base
+import models
+import schemas
+from ocr.engine import OCRProcessor
 
 # Initialize Database
 Base.metadata.create_all(bind=engine)
