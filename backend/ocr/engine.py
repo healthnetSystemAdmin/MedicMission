@@ -1,25 +1,28 @@
 import os
 import re
-import json
-import cv2
-import numpy as np
+import sys
 import traceback
 import time
 
 # --- CRITICAL RPI SEGFAULT HARDENING ---
 # These must be set before ANY other imports to lock the environment
-os.environ['OMP_NUM_THREADS'] = '1'
-os.environ['MKL_NUM_THREADS'] = '1'
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
-os.environ['MKL_THREADING_LAYER'] = 'GNU'
-os.environ['KMP_BLOCKTIME'] = '0'
-os.environ['LD_BIND_NOW'] = '1'
+os.environ.setdefault('OMP_NUM_THREADS', '1')
+os.environ.setdefault('MKL_NUM_THREADS', '1')
+os.environ.setdefault('KMP_DUPLICATE_LIB_OK', 'True')
+os.environ.setdefault('MKL_THREADING_LAYER', 'GNU')
+os.environ.setdefault('KMP_BLOCKTIME', '0')
+os.environ.setdefault('LD_BIND_NOW', '1')
 
 # Paddle-specific memory management for ARM
-os.environ['FLAGS_allocator_strategy'] = 'naive_best_fit'
-os.environ['FLAGS_fraction_of_gpu_memory_to_use'] = '0'
-os.environ['PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK'] = 'True'
-os.environ['FLAGS_use_mkldnn'] = '0'
+os.environ.setdefault('FLAGS_allocator_strategy', 'naive_best_fit')
+os.environ.setdefault('FLAGS_fraction_of_gpu_memory_to_use', '0')
+os.environ.setdefault('PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK', 'True')
+os.environ.setdefault('FLAGS_use_mkldnn', '0')
+
+import cv2
+import numpy as np
+
+cv2.setNumThreads(1)
 
 try:
     import paddle
@@ -48,6 +51,11 @@ class OCRProcessor:
         Helper to try and load the most stable OCR model.
         The constructor arguments vary wildly between PaddleOCR versions.
         """
+        if sys.version_info >= (3, 13):
+            print("Python 3.13+ detected. PaddleOCR on Raspberry Pi is unstable on this runtime; OCR init skipped.")
+            self.ocr = None
+            return
+
         # Strategy 1: Attempt standard mobile-optimized config
         try:
             print("Attempting standard Mobile-V4 initialization...")

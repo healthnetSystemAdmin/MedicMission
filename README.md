@@ -12,7 +12,7 @@ An offline-first patient registration system optimized for Raspberry Pi 5.
 ## 1. Prerequisites (Raspberry Pi 5)
 - **OS**: Raspberry Pi OS (64-bit recommended).
 - **Camera**: USB Webcam or RPi Camera Module.
-- **Python**: 3.9+
+- **Python**: 3.10-3.11 recommended (avoid 3.13 for PaddleOCR on ARM)
 - **Node.js**: 18+
 
 ## 2. Installation (Offline Ready)
@@ -64,3 +64,4 @@ npm run dev
 - **CORS**: If accessing via network, update `allow_origins` in `main.py`.
 - **Memory**: RPi 5 with 8GB is ideal; 4GB works but avoid opening many browser tabs.
 - **Browser**: Use Chromium on RPi for best hardware acceleration support.
+- **Segmentation Fault (SIGSEGV)**: If Paddle crashes on startup or first OCR call, recreate the backend venv with Python 3.10/3.11 and reinstall packages.

@@ -1,5 +1,6 @@
 import os
 import uuid
+import threading
 from typing import List
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,13 +33,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# OCR Instance (Singleton style)
-# This may take a few seconds to load models on startup
-ocr_engine = OCRProcessor()
+# OCR Instance (lazy singleton)
+ocr_engine = None
+ocr_engine_lock = threading.Lock()
+
+
+def get_ocr_engine() -> OCRProcessor:
+    global ocr_engine
+    if ocr_engine is None:
+        with ocr_engine_lock:
+            if ocr_engine is None:
+                ocr_engine = OCRProcessor()
+    return ocr_engine
 
 @app.get("/api/health")
 async def health_check():
-    return {"status": "ok", "engine": "paddleocr", "db": "connected"}
+    return {
+        "status": "ok",
+        "engine": "paddleocr",
+        "ocr_initialized": ocr_engine is not None,
+        "db": "connected",
+    }
 
 @app.post("/api/camera/capture-ocr", response_model=schemas.OCRResponse)
 async def capture_ocr(file: UploadFile = File(...)):
@@ -51,8 +66,12 @@ async def capture_ocr(file: UploadFile = File(...)):
             shutil.copyfileobj(file.file, buffer)
             
         # 2. Run OCR
-        ocr_result = ocr_engine.process_image(file_path)
+        ocr = get_ocr_engine()
+        ocr_result = ocr.process_image(file_path)
         return ocr_result
+    except RuntimeError as e:
+        print(f"OCR Runtime Error: {str(e)}")
+        raise HTTPException(status_code=503, detail=f"OCR Unavailable: {str(e)}")
     except Exception as e:
         print(f"OCR Error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"OCR Processing Failed: {str(e)}")
