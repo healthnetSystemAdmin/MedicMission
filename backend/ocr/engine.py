@@ -51,12 +51,11 @@ class OCRProcessor:
         # Strategy 1: Attempt standard mobile-optimized config
         try:
             print("Attempting standard Mobile-V4 initialization...")
+            # 'use_gpu' and 'enable_mkldnn' are removed as they are handled by env vars or internal config in newer versions
             self.ocr = PaddleOCR(
                 lang='en',
                 ocr_version='PP-OCRv4',
                 use_angle_cls=False,
-                use_gpu=False,
-                enable_mkldnn=False,
                 det_limit_side_len=736,
                 det_limit_type='max'
             )
