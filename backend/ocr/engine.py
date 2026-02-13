@@ -53,7 +53,12 @@ class OCRProcessor:
             print("Attempting standard Mobile-V4 initialization...")
             self.ocr = PaddleOCR(
                 lang='en',
-                ocr_version='PP-OCRv4'
+                ocr_version='PP-OCRv4',
+                use_angle_cls=False,
+                use_gpu=False,
+                enable_mkldnn=False,
+                det_limit_side_len=736,
+                det_limit_type='max'
             )
             print("--- PP-OCRv4 Engine Ready ---")
             return
