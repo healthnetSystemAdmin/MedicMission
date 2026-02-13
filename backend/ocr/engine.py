@@ -22,14 +22,11 @@ class OCRProcessor:
         self.ocr = None
         
         try:
-            # We use the most minimal configuration possible to avoid "Unknown argument" errors
-            # which can occur in specific versions of PaddleOCR or under Python 3.13.
-            # PaddleOCR defaults to CPU when GPU is not available.
-            # Environment variables above (OMP_NUM_THREADS) handle the performance/stability.
-            self.ocr = PaddleOCR(
-                lang='en',
-                use_angle_cls=True
-            )
+            # We use the most minimal configuration possible.
+            # PaddleOCR is sensitive to arguments across versions.
+            # On RPi, it will automatically default to CPU if GPU is unavailable.
+            # We specify 'lang' only to ensure basic functionality.
+            self.ocr = PaddleOCR(lang='en')
             print("--- PaddleOCR Engine Ready ---")
         except Exception as e:
             print("!!! OCR INITIALIZATION FAILED !!!")
@@ -58,15 +55,24 @@ class OCRProcessor:
         if self.ocr is None:
             raise RuntimeError(
                 "OCR Engine is not initialized. "
-                "Please check the backend terminal for initialization errors."
+                "Please check the backend terminal for initialization errors during startup."
             )
             
         if not os.path.exists(img_path):
             raise FileNotFoundError(f"Image not found at {img_path}")
 
         try:
-            # Inference call
-            result = self.ocr.ocr(img_path, cls=True)
+            # Attempt inference with 'cls' (angle classification).
+            # We use a nested try-except because some PaddleOCR versions or custom builds 
+            # on ARM/Python 3.13 have inconsistent method signatures for the .ocr() call.
+            try:
+                result = self.ocr.ocr(img_path, cls=True)
+            except TypeError as te:
+                if "unexpected keyword argument 'cls'" in str(te):
+                    print("Note: 'cls' argument not supported by this PaddleOCR version. Retrying without it...")
+                    result = self.ocr.ocr(img_path)
+                else:
+                    raise te
         except Exception as e:
             print(f"Inference Crash: {e}")
             traceback.print_exc()
