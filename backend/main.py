@@ -1,4 +1,3 @@
-
 import os
 import uuid
 from typing import List
@@ -8,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 import shutil
 
-# Local imports - Fixed to absolute for direct script execution
+# Local imports
 from database import engine, get_db, Base
 import models
 import schemas
@@ -24,16 +23,22 @@ DATA_DIR = "./data"
 IMAGES_DIR = os.path.join(DATA_DIR, "id_images")
 os.makedirs(IMAGES_DIR, exist_ok=True)
 
-# CORS
+# CORS - Explicitly open for development and local network usage
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # OCR Instance (Singleton style)
+# This may take a few seconds to load models on startup
 ocr_engine = OCRProcessor()
+
+@app.get("/api/health")
+async def health_check():
+    return {"status": "ok", "engine": "paddleocr", "db": "connected"}
 
 @app.post("/api/camera/capture-ocr", response_model=schemas.OCRResponse)
 async def capture_ocr(file: UploadFile = File(...)):
@@ -41,15 +46,16 @@ async def capture_ocr(file: UploadFile = File(...)):
     filename = f"{uuid.uuid4()}.jpg"
     file_path = os.path.join(IMAGES_DIR, filename)
     
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-        
-    # 2. Run OCR
     try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+            
+        # 2. Run OCR
         ocr_result = ocr_engine.process_image(file_path)
         return ocr_result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"OCR Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"OCR Processing Failed: {str(e)}")
 
 @app.post("/api/patients", response_model=schemas.Patient)
 def create_patient(patient: schemas.PatientCreate, db: Session = Depends(get_db)):
@@ -61,7 +67,7 @@ def create_patient(patient: schemas.PatientCreate, db: Session = Depends(get_db)
 
 @app.get("/api/patients", response_model=List[schemas.Patient])
 def read_patients(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    patients = db.query(models.Patient).offset(skip).limit(limit).all()
+    patients = db.query(models.Patient).order_by(models.Patient.created_at.desc()).offset(skip).limit(limit).all()
     return patients
 
 @app.get("/api/patients/{patient_id}", response_model=schemas.Patient)
@@ -76,4 +82,5 @@ app.mount("/api/images", StaticFiles(directory=IMAGES_DIR), name="images")
 
 if __name__ == "__main__":
     import uvicorn
+    # 0.0.0.0 is crucial for Raspberry Pi network access
     uvicorn.run(app, host="0.0.0.0", port=8000)

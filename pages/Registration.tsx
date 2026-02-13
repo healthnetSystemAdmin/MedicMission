@@ -1,5 +1,4 @@
-
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CameraStatus, Patient, OCRResponse } from '../types.ts';
 import { api } from '../api.ts';
@@ -17,6 +16,7 @@ const Registration: React.FC = () => {
   const navigate = useNavigate();
   const [status, setStatus] = useState<CameraStatus>(CameraStatus.READY);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [backendOnline, setBackendOnline] = useState<boolean | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [formData, setFormData] = useState<Patient>({
     philhealth_no: '',
@@ -35,6 +35,18 @@ const Registration: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
 
+  // Check backend connectivity on mount
+  useEffect(() => {
+    const check = async () => {
+      const isUp = await api.checkHealth();
+      setBackendOnline(isUp);
+      if (!isUp) {
+        console.error("Backend unreachable. Check port 8000 and CORS settings.");
+      }
+    };
+    check();
+  }, []);
+
   const startCamera = async () => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({ 
@@ -50,7 +62,8 @@ const Registration: React.FC = () => {
         setStatus(CameraStatus.ON);
       }
     } catch (err) {
-      alert("Could not access camera. Please check permissions.");
+      alert("Could not access camera. Please ensure you are using a secure connection (localhost or HTTPS) and have granted permissions.");
+      console.error("Camera access error:", err);
     }
   };
 
@@ -96,14 +109,13 @@ const Registration: React.FC = () => {
 
           setCapturedImage(result.image.preview_url);
           
-          // Stop camera after capture
           if (stream) {
             stream.getTracks().forEach(track => track.stop());
             setStream(null);
           }
           setStatus(CameraStatus.READY);
         } catch (error) {
-          alert("OCR failed. Manual entry required.");
+          alert(error instanceof Error ? error.message : "OCR failed. Please enter details manually.");
           setStatus(CameraStatus.READY);
         } finally {
           setIsProcessing(false);
@@ -118,12 +130,21 @@ const Registration: React.FC = () => {
       alert("Record Saved Successfully!");
       navigate('/masterlist');
     } catch (error) {
-      alert("Error saving record.");
+      alert("Error saving record. Check backend connectivity.");
     }
   };
 
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
+      {backendOnline === false && (
+        <div className="bg-red-50 border border-red-200 p-4 rounded-2xl flex items-center gap-3 text-red-700 animate-pulse">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <span className="font-bold text-sm">Backend is unreachable! Ensure main.py is running on port 8000.</span>
+        </div>
+      )}
+
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-slate-800">New Registration</h1>
         <div className={`px-4 py-1.5 rounded-full text-xs font-bold ${
@@ -146,7 +167,11 @@ const Registration: React.FC = () => {
                   </svg>
                 </div>
                 <p className="text-slate-500 font-medium">Camera Offline</p>
-                <button onClick={startCamera} className="mt-4 px-6 py-2.5 bg-emerald-600 text-white rounded-xl font-bold shadow-lg shadow-emerald-900/20 hover:bg-emerald-700 transition-all active:scale-95">
+                <button 
+                  onClick={startCamera} 
+                  disabled={backendOnline === false}
+                  className="mt-4 px-6 py-2.5 bg-emerald-600 text-white rounded-xl font-bold shadow-lg shadow-emerald-900/20 hover:bg-emerald-700 transition-all active:scale-95 disabled:opacity-50"
+                >
                   INITIALIZE CAMERA
                 </button>
               </div>
@@ -296,7 +321,7 @@ const Registration: React.FC = () => {
       <div className="sticky bottom-4 left-0 right-0 pt-4">
         <button 
           onClick={handleSave}
-          disabled={!formData.last_name || !formData.first_name || isProcessing}
+          disabled={!formData.last_name || !formData.first_name || isProcessing || backendOnline === false}
           className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold shadow-2xl shadow-slate-400 hover:bg-slate-800 transition-all active:scale-[0.99] disabled:opacity-50 flex items-center justify-center gap-2"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
