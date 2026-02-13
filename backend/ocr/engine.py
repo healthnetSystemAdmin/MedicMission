@@ -23,13 +23,13 @@ class OCRProcessor:
         
         try:
             # We use a very conservative configuration for RPi stability.
+            # Removed 'show_log=False' as it causes ValueError in recent versions of PaddleOCR.
             # On first run, this WILL download models (~100MB), requiring internet.
             self.ocr = PaddleOCR(
                 use_gpu=False,
                 use_angle_cls=True, 
                 lang='en',
-                use_mp=False,
-                show_log=False
+                use_mp=False
             )
             print("--- PaddleOCR Engine Ready ---")
         except Exception as e:
