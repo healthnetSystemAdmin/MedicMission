@@ -42,18 +42,24 @@ class OCRProcessor:
         
         try:
             # Try minimal initialization
+            # We remove 'use_angle_cls' as it might be internal to the 'cls' arg logic 
+            # which is failing on this version.
             try:
-                self.ocr = PaddleOCR(lang='en', use_angle_cls=False, show_log=False)
+                self.ocr = PaddleOCR(lang='en', show_log=False)
             except (ValueError, TypeError):
-                # Fallback for older or specific ARM versions that don't like 'lang' or 'show_log'
+                print("Standard init failed, trying absolute barebones...")
                 self.ocr = PaddleOCR() 
             
             if self.ocr:
                 print("--- Engine Initialized. Running Warmup... ---")
-                # Warmup: Run a tiny inference on a blank image to 'lock' memory
-                # This catches SegFaults at startup instead of during usage
+                # Warmup: Run a tiny inference on a blank image.
+                # FIX: Removed 'cls=False' which was causing TypeError.
                 blank_img = np.zeros((100, 100, 3), dtype=np.uint8)
-                self.ocr.ocr(blank_img, cls=False)
+                try:
+                    self.ocr.ocr(blank_img)
+                except TypeError as te:
+                    print(f"Warmup warning (likely non-critical): {te}")
+                
                 print("--- PaddleOCR Engine Ready & Warmed Up ---")
         except Exception as e:
             print("!!! OCR INITIALIZATION/WARMUP FAILED !!!")
@@ -68,19 +74,14 @@ class OCRProcessor:
             raise FileNotFoundError(f"Image not found at {img_path}")
 
         try:
-            # IMPORTANT: Load image with OpenCV first and pass the array.
-            # Passing the path string to Paddle sometimes triggers 
-            # SegFaults in the internal C++ file reader on ARM.
+            # Load image with OpenCV first and pass the array.
             img = cv2.imread(img_path)
             if img is None:
                 raise ValueError("Could not decode image with OpenCV")
 
             # Inference using the numpy array
-            try:
-                result = self.ocr.ocr(img, cls=False)
-            except Exception:
-                # Last resort bare call
-                result = self.ocr.ocr(img)
+            # FIX: Only use bare call to avoid argument mismatch on different Paddle versions
+            result = self.ocr.ocr(img)
                 
         except Exception as e:
             print(f"Inference Crash: {e}")
