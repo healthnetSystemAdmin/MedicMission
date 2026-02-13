@@ -5,34 +5,47 @@ import cv2
 import numpy as np
 import traceback
 
-# CRITICAL: Set environment variables BEFORE importing paddle
-# These prevent SegFaults and initialization hangs on ARM64/RPi
+# --- CRITICAL RPI SEGFAULT FIXES ---
+# 1. Threading limits to prevent OpenMP conflicts
 os.environ['OMP_NUM_THREADS'] = '1'
 os.environ['MKL_NUM_THREADS'] = '1'
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+os.environ['MKL_THREADING_LAYER'] = 'GNU'
+
+# 2. Paddle-specific memory management for ARM
+os.environ['FLAGS_allocator_strategy'] = 'naive_best_fit'
+os.environ['FLAGS_fraction_of_gpu_memory_to_use'] = '0'
 os.environ['PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK'] = 'True'
+
+# 3. Prevent Paddle from trying to use GPU-specific optimizations
+os.environ['FLAGS_use_mkldnn'] = '0'
 
 try:
     from paddleocr import PaddleOCR
 except ImportError:
-    print("!!! PaddleOCR library not found. Ensure 'pip install paddleocr paddlepaddle' was successful. !!!")
+    print("!!! PaddleOCR library not found !!!")
 
 class OCRProcessor:
     def __init__(self):
-        print("--- Initializing PaddleOCR (RPi ARM64 Optimized) ---")
+        print("--- Initializing PaddleOCR (Safe Mode for RPi) ---")
         self.ocr = None
         
         try:
-            # We use the most minimal configuration possible.
-            # PaddleOCR is sensitive to arguments across versions.
-            # On RPi, it will automatically default to CPU if GPU is unavailable.
-            # We specify 'lang' only to ensure basic functionality.
-            self.ocr = PaddleOCR(lang='en')
-            print("--- PaddleOCR Engine Ready ---")
+            # We try the most basic initialization. 
+            # Note: On some RPi builds, passing ANY arguments to PaddleOCR() 
+            # triggers an internal argument parser that crashes.
+            try:
+                print("Attempting minimal initialization...")
+                self.ocr = PaddleOCR(lang='en', use_angle_cls=False)
+            except (ValueError, TypeError) as e:
+                print(f"Standard init failed ({e}), trying absolute barebones...")
+                # Absolute minimum - defaults to 'ch' (Chinese) usually but loads the engine
+                self.ocr = PaddleOCR() 
+            
+            if self.ocr:
+                print("--- PaddleOCR Engine Ready ---")
         except Exception as e:
-            print("!!! OCR INITIALIZATION FAILED !!!")
-            print(f"Error Type: {type(e).__name__}")
-            print(f"Error Message: {str(e)}")
-            # Print full traceback to terminal to help debug
+            print("!!! OCR INITIALIZATION FAILED (Likely SegFault or Memory) !!!")
             traceback.print_exc()
             self.ocr = None
 
@@ -53,26 +66,18 @@ class OCRProcessor:
 
     def process_image(self, img_path):
         if self.ocr is None:
-            raise RuntimeError(
-                "OCR Engine is not initialized. "
-                "Please check the backend terminal for initialization errors during startup."
-            )
+            raise RuntimeError("OCR Engine not ready.")
             
         if not os.path.exists(img_path):
             raise FileNotFoundError(f"Image not found at {img_path}")
 
         try:
-            # Attempt inference with 'cls' (angle classification).
-            # We use a nested try-except because some PaddleOCR versions or custom builds 
-            # on ARM/Python 3.13 have inconsistent method signatures for the .ocr() call.
+            # RPi Safe Inference: Some versions of Paddle on ARM crash if 'cls' is passed
             try:
-                result = self.ocr.ocr(img_path, cls=True)
-            except TypeError as te:
-                if "unexpected keyword argument 'cls'" in str(te):
-                    print("Note: 'cls' argument not supported by this PaddleOCR version. Retrying without it...")
-                    result = self.ocr.ocr(img_path)
-                else:
-                    raise te
+                result = self.ocr.ocr(img_path, cls=False)
+            except Exception:
+                print("Inference with cls=False failed, trying bare call...")
+                result = self.ocr.ocr(img_path)
         except Exception as e:
             print(f"Inference Crash: {e}")
             traceback.print_exc()
@@ -95,7 +100,7 @@ class OCRProcessor:
                 "preview_url": os.path.basename(img_path)
             },
             "debug": {
-                "ocr_engine": "paddleocr-rpi-stable",
+                "ocr_engine": "paddleocr-rpi-safe",
                 "notes": f"Detected {len(lines)} text blocks"
             }
         }
