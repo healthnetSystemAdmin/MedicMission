@@ -47,6 +47,13 @@ const Registration: React.FC = () => {
     check();
   }, []);
 
+  // Effect to attach stream to video element once it is rendered
+  useEffect(() => {
+    if (stream && videoRef.current && status === CameraStatus.ON) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [stream, status]);
+
   const startCamera = async () => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({ 
@@ -56,11 +63,10 @@ const Registration: React.FC = () => {
           facingMode: 'environment'
         } 
       });
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        setStream(mediaStream);
-        setStatus(CameraStatus.ON);
-      }
+      
+      setStream(mediaStream);
+      setCapturedImage(null); // Clear previous capture if retaking
+      setStatus(CameraStatus.ON);
     } catch (err) {
       alert("Could not access camera. Please ensure you are using a secure connection (localhost or HTTPS) and have granted permissions.");
       console.error("Camera access error:", err);
@@ -117,6 +123,8 @@ const Registration: React.FC = () => {
         } catch (error) {
           alert(error instanceof Error ? error.message : "OCR failed. Please enter details manually.");
           setStatus(CameraStatus.READY);
+          // If OCR fails, we still want to keep the "captured" state so they can see their photo
+          // or retake it.
         } finally {
           setIsProcessing(false);
         }
@@ -177,7 +185,7 @@ const Registration: React.FC = () => {
               </div>
             )}
 
-            {status !== CameraStatus.READY && (
+            {(status === CameraStatus.ON || status === CameraStatus.PROCESSING) && (
               <>
                 <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
                 <div className="absolute inset-0 border-[40px] border-black/30 pointer-events-none">
@@ -208,7 +216,7 @@ const Registration: React.FC = () => {
                 CAPTURE PHOTO
               </button>
             )}
-            {capturedImage && (
+            {capturedImage && status === CameraStatus.READY && (
               <button 
                 onClick={startCamera}
                 className="flex-1 py-4 bg-slate-200 text-slate-700 rounded-2xl font-bold transition-all active:scale-[0.98]"
