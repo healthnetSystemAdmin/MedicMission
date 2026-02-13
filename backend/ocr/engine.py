@@ -22,21 +22,20 @@ class OCRProcessor:
         self.ocr = None
         
         try:
-            # We use a very conservative configuration for RPi stability.
-            # Removed 'show_log=False' as it causes ValueError in recent versions of PaddleOCR.
-            # On first run, this WILL download models (~100MB), requiring internet.
+            # We use the most minimal configuration possible to avoid "Unknown argument" errors
+            # which can occur in specific versions of PaddleOCR or under Python 3.13.
+            # PaddleOCR defaults to CPU when GPU is not available.
+            # Environment variables above (OMP_NUM_THREADS) handle the performance/stability.
             self.ocr = PaddleOCR(
-                use_gpu=False,
-                use_angle_cls=True, 
                 lang='en',
-                use_mp=False
+                use_angle_cls=True
             )
             print("--- PaddleOCR Engine Ready ---")
         except Exception as e:
             print("!!! OCR INITIALIZATION FAILED !!!")
             print(f"Error Type: {type(e).__name__}")
             print(f"Error Message: {str(e)}")
-            # Print full traceback to terminal to help debug missing system libs
+            # Print full traceback to terminal to help debug
             traceback.print_exc()
             self.ocr = None
 
@@ -59,7 +58,7 @@ class OCRProcessor:
         if self.ocr is None:
             raise RuntimeError(
                 "OCR Engine is not initialized. "
-                "Please check the backend terminal for initialization errors (e.g., missing models or system libraries)."
+                "Please check the backend terminal for initialization errors."
             )
             
         if not os.path.exists(img_path):
