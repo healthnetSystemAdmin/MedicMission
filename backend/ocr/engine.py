@@ -6,7 +6,7 @@ import numpy as np
 import traceback
 
 # --- CRITICAL RPI SEGFAULT HARDENING ---
-# These must be set before ANY other imports
+# These must be set before ANY other imports to lock the environment
 os.environ['OMP_NUM_THREADS'] = '1'
 os.environ['MKL_NUM_THREADS'] = '1'
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
@@ -22,13 +22,12 @@ os.environ['FLAGS_use_mkldnn'] = '0'
 
 try:
     import paddle
-    # Explicitly set device to CPU before loading OCR
+    # Force CPU device immediately
     paddle.set_device('cpu')
-    # Disable static mode if needed (common fix for RPi)
     if hasattr(paddle, 'disable_static'):
         paddle.disable_static()
 except Exception as e:
-    print(f"Warning: Could not set paddle device flags: {e}")
+    print(f"Warning: Paddle device config failed: {e}")
 
 try:
     from paddleocr import PaddleOCR
@@ -37,50 +36,53 @@ except ImportError:
 
 class OCRProcessor:
     def __init__(self):
-        print("--- Initializing PaddleOCR (Hardened RPi Mode) ---")
+        print("--- Preparing Hardened OCR Engine (Mobile-First) ---")
         self.ocr = None
-        
+        self._initialize_engine()
+
+    def _initialize_engine(self):
+        """Helper to try and load the most stable mobile model for RPi"""
         try:
-            # Try minimal initialization
-            # We remove 'use_angle_cls' as it might be internal to the 'cls' arg logic 
-            # which is failing on this version.
-            try:
-                self.ocr = PaddleOCR(lang='en', show_log=False)
-            except (ValueError, TypeError):
-                print("Standard init failed, trying absolute barebones...")
-                self.ocr = PaddleOCR() 
-            
-            if self.ocr:
-                print("--- Engine Initialized. Running Warmup... ---")
-                # Warmup: Run a tiny inference on a blank image.
-                # FIX: Removed 'cls=False' which was causing TypeError.
-                blank_img = np.zeros((100, 100, 3), dtype=np.uint8)
-                try:
-                    self.ocr.ocr(blank_img)
-                except TypeError as te:
-                    print(f"Warmup warning (likely non-critical): {te}")
-                
-                print("--- PaddleOCR Engine Ready & Warmed Up ---")
+            # We explicitly request PP-OCRv4 (Mobile). 
+            # PP-OCRv5-Server (default in some builds) SegFaults on Pi 5.
+            self.ocr = PaddleOCR(
+                use_angle_cls=False, 
+                lang='en', 
+                use_gpu=False,
+                ocr_version='PP-OCRv4',
+                show_log=False,
+                enable_mkldnn=False # MKLDNN is for Intel, can crash ARM
+            )
+            print("--- PP-OCRv4 Mobile Engine Ready ---")
         except Exception as e:
-            print("!!! OCR INITIALIZATION/WARMUP FAILED !!!")
-            traceback.print_exc()
-            self.ocr = None
+            print(f"!!! OCR Engine Init Failed: {e} !!!")
+            # Fallback to absolute bare minimum
+            try:
+                print("Attempting barebones fallback...")
+                self.ocr = PaddleOCR(use_gpu=False, ocr_version='PP-OCRv3')
+            except:
+                self.ocr = None
+                traceback.print_exc()
 
     def process_image(self, img_path):
+        # Lazy check if init failed previously
         if self.ocr is None:
-            raise RuntimeError("OCR Engine not ready. Check startup logs.")
+            self._initialize_engine()
+            
+        if self.ocr is None:
+            raise RuntimeError("OCR Engine could not be initialized. Check RPi logs.")
             
         if not os.path.exists(img_path):
             raise FileNotFoundError(f"Image not found at {img_path}")
 
         try:
-            # Load image with OpenCV first and pass the array.
+            # Load image with OpenCV to avoid Paddle's internal file reader
             img = cv2.imread(img_path)
             if img is None:
-                raise ValueError("Could not decode image with OpenCV")
+                raise ValueError("OpenCV failed to decode image")
 
-            # Inference using the numpy array
-            # FIX: Only use bare call to avoid argument mismatch on different Paddle versions
+            # Run inference on the numpy array
+            # Note: We do NOT pass any extra args here to keep the call as 'pure' C++ as possible
             result = self.ocr.ocr(img)
                 
         except Exception as e:
@@ -105,7 +107,7 @@ class OCRProcessor:
                 "preview_url": os.path.basename(img_path)
             },
             "debug": {
-                "ocr_engine": "paddleocr-rpi-hardened",
+                "ocr_engine": "paddleocr-v4-mobile",
                 "notes": f"Detected {len(lines)} text blocks"
             }
         }
