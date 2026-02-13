@@ -1,0 +1,7 @@
+{
+  "name": "MedicMission Offline Registry - Development",
+  "description": "A high-performance, offline patient registration system for medical missions featuring local OCR for PhilHealth ID cards.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
