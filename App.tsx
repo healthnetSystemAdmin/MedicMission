@@ -1,10 +1,10 @@
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import Home from './pages/Home';
-import Registration from './pages/Registration';
-import Masterlist from './pages/Masterlist';
-import PatientDetails from './pages/PatientDetails';
+import Home from './pages/Home.tsx';
+import Registration from './pages/Registration.tsx';
+import Masterlist from './pages/Masterlist.tsx';
+import PatientDetails from './pages/PatientDetails.tsx';
 
 const Nav: React.FC = () => {
   const location = useLocation();
@@ -20,12 +20,12 @@ const Nav: React.FC = () => {
             <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
           </svg>
         </div>
-        <span className="font-bold text-slate-800 tracking-tight">MEDICMISSION</span>
+        <span className="font-bold text-slate-800 tracking-tight text-lg">MEDICMISSION</span>
       </Link>
-      <div className="flex gap-4">
+      <div className="flex gap-2 sm:gap-4">
         <Link 
           to="/registration" 
-          className={`px-4 py-2 rounded-full text-sm font-semibold transition-all ${
+          className={`px-3 py-2 sm:px-4 rounded-full text-xs sm:text-sm font-semibold transition-all ${
             location.pathname === '/registration' ? 'bg-emerald-100 text-emerald-800' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
@@ -33,7 +33,7 @@ const Nav: React.FC = () => {
         </Link>
         <Link 
           to="/masterlist" 
-          className={`px-4 py-2 rounded-full text-sm font-semibold transition-all ${
+          className={`px-3 py-2 sm:px-4 rounded-full text-xs sm:text-sm font-semibold transition-all ${
             location.pathname === '/masterlist' ? 'bg-emerald-100 text-emerald-800' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >

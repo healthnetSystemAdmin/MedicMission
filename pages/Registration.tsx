@@ -1,8 +1,8 @@
 
 import React, { useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CameraStatus, Patient, OCRResponse } from '../types';
-import { api } from '../api';
+import { CameraStatus, Patient, OCRResponse } from '../types.ts';
+import { api } from '../api.ts';
 
 const ConfidenceBadge: React.FC<{ confidence: number }> = ({ confidence }) => {
   const isHigh = confidence >= 0.8;
@@ -136,7 +136,6 @@ const Registration: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Left: Camera/Image Area */}
         <div className="space-y-4">
           <div className="relative aspect-[4/3] bg-slate-900 rounded-3xl overflow-hidden shadow-inner flex items-center justify-center border-4 border-white shadow-xl">
             {status === CameraStatus.READY && !capturedImage && (
@@ -193,11 +192,9 @@ const Registration: React.FC = () => {
               </button>
             )}
           </div>
-          
           <canvas ref={canvasRef} className="hidden" />
         </div>
 
-        {/* Right: Form Area */}
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 space-y-6">
           <h3 className="text-lg font-bold text-slate-700 border-b pb-3">Patient Information</h3>
           

@@ -1,8 +1,10 @@
 
-import { Patient, OCRResponse } from './types';
+import { Patient, OCRResponse } from './types.ts';
 
-// In a real RPi environment, this might be 'http://localhost:8000'
-const BASE_URL = 'http://localhost:8000/api';
+// Dynamically determine the backend host based on the current window location
+// This allows the app to work when accessed via the Pi's IP address (e.g. 192.168.x.x)
+const hostname = window.location.hostname || 'localhost';
+const BASE_URL = `http://${hostname}:8000/api`;
 
 export const api = {
   async captureAndOCR(imageBlob: Blob): Promise<OCRResponse> {

@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Patient } from '../types';
-import { api } from '../api';
+import { Patient } from '../types.ts';
+import { api } from '../api.ts';
 
 const Masterlist: React.FC = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
