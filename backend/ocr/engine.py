@@ -9,9 +9,10 @@ from paddleocr import PaddleOCR
 class OCRProcessor:
     def __init__(self):
         # Initialize PaddleOCR
+        # Removed show_log=False as it is not supported in newer versions/strict argument parsing
         # use_angle_cls=True helps with rotated images
         # lang='en' for standard alphanumeric cards
-        self.ocr = PaddleOCR(use_angle_cls=True, lang='en', show_log=False)
+        self.ocr = PaddleOCR(use_angle_cls=True, lang='en')
         print("--- PaddleOCR Engine Initialized (CPU Mode) ---")
 
     def preprocess_image(self, img_path):
